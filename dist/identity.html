@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <title>Identity Test Provider</title>
+    <style>
+
+      body {
+          font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
+                       Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+          color: #4a5568;
+          background-color: #fff;
+      }
+
+      h1 {
+          font-size: 48px;
+          font-weight: 500;
+          margin-top: 40px;
+          margin-bottom: 10px;
+      }
+
+      .wrapper {
+          display: flex;
+          height: calc(100vh - 40px);
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+      }
+
+      .caps {
+          font-size: 14px;
+          font-weight: 600;
+          text-transform: uppercase;
+          color: #57b560;
+      }
+
+      .btn {
+          margin-top: 1em;
+          margin-bottom: 1em;
+          padding: 0.5em 2em;
+          border: none;
+          border-radius: 8px;
+          
+          cursor: pointer;
+          background: #57b560;
+          color: white;
+          font-size: 14px;
+          font-weight: 400;
+      }
+
+      .btn:hover {
+          background: #59ad61;
+      }
+
+      .btn:active {
+          background: #57b560;
+      }
+
+      .btn > svg {
+          padding-right: 8px;
+      }
+
+      .center {
+          text-align: center;
+      }
+
+      .loading {
+          background: gray !important;
+          cursor: not-allowed;
+      }
+
+      #identity-container {
+          position: relative;
+          width: 300px;
+          height: 200px;
+
+          border: 1px solid black;
+          border-radius: 5px;
+      }
+
+      .identity-screen {
+          display: none;
+      }
+
+      #placeholder-field {
+          margin-top: 2em;
+          width: 400px;
+      }
+      
+    </style>
+  </head>
+
+  <body>
+    <div class="wrapper">
+      <!-- Display identity info -->
+      <div id="identity-container">
+
+        <div id="identity-logged-out" class="identity-screen center">
+          <h1>Logged Out</h1>
+          <div>
+            <b>Sign in</b> with your passphrase, or <b>sign up</b> for a new account.
+          </div>
+          <button id="button-logged-out-sign-in" class="btn" onclick="window.goToSignIn()">
+            Sign in
+          </button>
+          <button id="button-logged-out-sign-up" class="btn" onclick="window.goToSignUp()">
+            Sign up
+          </button>
+        </div>
+
+        <div id="identity-sign-in" class="identity-screen center">
+          <h1>Sign In</h1>
+          <div>
+            <!-- TODO -->
+          </div>
+        </div>
+
+        <!-- TODO -->
+
+      </div>
+    </div>
+
+    <script>
+      const uiIdentityLoggedOut = document.getElementById("identity-logged-out");
+      const uiIdentitySignIn = document.getElementById("identity-sign-in");
+      const uiIdentitySignUp = document.getElementById("identity-sign-up");
+
+      window.goToLoggedOut = () => {
+        setAllIdentityContainersInvisible();
+        uiIdentityLoggedOut!.style.display = "block";
+      }
+
+      window.goToSignIn = () => {
+        setAllIdentityContainersInvisible();
+        uiIdentitySignIn!.style.display = "block";
+      }
+
+      window.goToSignUp = () => {
+        setAllIdentityContainersInvisible();
+        uiIdentitySignUp!.style.display = "block";
+      }
+
+      function setAllIdentityContainersInvisible() {
+        uiIdentityLoggedOut!.style.display = "none";
+        uiIdentitySignIn!.style.display = "none";
+        uiIdentitySignUp!.style.display = "none";
+      }
+
+      window.goToLoggedOut();
+    </script>
+  </body>
+</html>

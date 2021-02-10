@@ -1,19 +1,22 @@
 import { connectToParent } from "penpal";
 import { Connection } from "penpal/lib/types";
 import { SkynetClient, deriveChildSeed, genKeyPairFromSeed } from "skynet-js";
+import { popupCenter } from "./utils";
 
 export type Interface = Record<string, Array<string>>;
 
 const providerUrl = location.hostname;
 const providerName = "identity-test-name";
+const uiW = 500;
+const uiH = 400;
 
 const loginKey = "login";
 
 type ProviderInfo = {
-  providerInterface: Interface | null;
+  providerInterface: Interface;
   isProviderConnected: boolean;
   isProviderLoaded: boolean;
-  metadata: ProviderMetadata | null;
+  metadata: ProviderMetadata;
 };
 
 type ProviderMetadata = {
@@ -24,13 +27,18 @@ type ProviderMetadata = {
 class SkappInfo {
   name: string;
   domain: string;
+
+  constructor(name: string) {
+    this.name = name;
+    this.domain = location.hostname;
+  }
 }
 
 export class Provider {
-  parentConnection: Connection;
-  client: SkynetClient;
-
   providerInfo: ProviderInfo;
+
+  protected parentConnection: Connection;
+  protected client: SkynetClient;
 
   constructor(providerInterface: Interface) {
     // Set the provider info.
@@ -53,6 +61,7 @@ export class Provider {
         connectSilently: this.connectSilently,
         connectWithInput: this.connectWithInput,
         disconnect: this.disconnect,
+        getMetadata: this.getMetadata,
       },
       timeout: 5_000,
     });
@@ -75,6 +84,8 @@ export class Provider {
     }
 
     if (method in this.providerInfo.providerInterface) {
+      // TODO: Unignore
+      // @ts-ignore
       return this[method]();
     } else {
       throw new Error(
@@ -86,12 +97,12 @@ export class Provider {
   /**
    * Tries to connect to the provider, connecting even if the user isn't already logged in to the provider (as opposed to connectSilently()).
    */
-  protected async connectWithInput(skappInfo: SkappInfo): Promise<[Interface, ProviderMetadata]> {
+  protected async connectWithInput(skappInfo: SkappInfo): Promise<Interface> {
     // Check if user is connected already.
 
     let connectedSeed = this.getConnectedSeed();
     if (!connectedSeed) {
-      connectedSeed = this.queryUserForSeed();
+      connectedSeed = await this.queryUserForSeed();
       if (!connectedSeed) {
         throw new Error("could not get a stored seed or a seed from the user");
       }
@@ -108,7 +119,7 @@ export class Provider {
       this.saveSkappPermissions(connectedSeed, skappInfo);
     }
 
-    return [this.providerInfo.providerInterface!, this.providerInfo.metadata!];
+    return this.providerInfo.providerInterface;
   }
 
   protected async disconnect(): Promise<void> {
@@ -119,7 +130,7 @@ export class Provider {
   /**
    * Tries to connect to the provider, only connecting if the user is already logged in to the provider (as opposed to connectWithInput()).
    */
-  protected async connectSilently(skappInfo: SkappInfo): Promise<[Interface, ProviderMetadata]> {
+  protected async connectSilently(skappInfo: SkappInfo): Promise<Interface> {
     // Check if user is connected already.
 
     const connectedSeed = this.getConnectedSeed();
@@ -133,7 +144,11 @@ export class Provider {
       throw new Error("skapp not permissioned");
     }
 
-    return [this.providerInfo.providerInterface!, this.providerInfo.metadata!];
+    return this.providerInfo.providerInterface;
+  }
+
+  protected async getMetadata(): Promise<ProviderMetadata> {
+    return this.providerInfo.metadata;
   }
 
   // =========================
@@ -153,6 +168,73 @@ export class Provider {
 
   protected getConnectedSeed(): string | null {
     return localStorage.getItem(loginKey);
+  }
+
+  // TODO: should check periodically if window is still open.
+  /**
+   * Creates window with login UI and waits for a response.
+   */
+  protected async queryUserForSeed(): Promise<string> {
+    // Set the ui URL.
+    const identityUiUrl = "identity.html";
+
+    const promise: Promise<string> = new Promise((resolve, reject) => {
+      // Register a message listener.
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== location.origin)
+          return;
+
+        window.removeEventListener("message", handleMessage);
+
+        // Resolve or reject the promise.
+        if (event.data === "") {
+          reject(new Error("did not get a seed"));
+        }
+        resolve(event.data);
+      };
+
+      window.addEventListener("message", handleMessage);
+    });
+
+    // Open the ui.
+    const newWindow = popupCenter(identityUiUrl, providerName, uiW, uiH);
+
+    return promise;
+  }
+
+  // TODO: should check periodically if window is still open.
+  /**
+   * Creates window with permissions UI and waits for a response.
+   */
+  protected async queryUserForSkappPermission(skappInfo: SkappInfo): Promise<boolean> {
+    // Set the ui URL.
+    const permissionsUiUrl = `permissions.html?name=${skappInfo.name}&domain=${skappInfo.domain}`;
+
+    const promise: Promise<boolean> = new Promise((resolve, reject) => {
+      // Register a message listener.
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== location.origin)
+          return;
+
+        window.removeEventListener("message", handleMessage);
+
+        // Resolve or reject the promise.
+        if (event.data === "grant") {
+          resolve(true);
+        } else if (event.data === "deny") {
+          resolve(false);
+        }
+        // If window closed, don't deny the permission -- fail the operation instead.
+        reject(new Error("permissions were neither granted nor denied"));
+      };
+
+      window.addEventListener("message", handleMessage);
+    });
+
+    // Open the ui.
+    const newWindow = popupCenter(permissionsUiUrl, providerName, uiW, uiH);
+
+    return promise;
   }
 
   protected saveConnectedSeed(connectedSeed: string): void {
