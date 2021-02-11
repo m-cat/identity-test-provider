@@ -1,3 +1,6 @@
+/**
+ * From SkyID.
+ */
 export function popupCenter(url: string, title: string, w: number, h: number): Window {
   // Fixes dual-screen position                             Most browsers      Firefox
   const dualScreenLeft = window.screenLeft !== undefined ? window.screenLeft : window.screenX

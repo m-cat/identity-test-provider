@@ -1,16 +1,14 @@
+/**
+ * Generic provider code.
+ */
+
 import { connectToParent } from "penpal";
 import { Connection } from "penpal/lib/types";
-import { SkynetClient, deriveChildSeed, genKeyPairFromSeed } from "skynet-js";
-import { popupCenter } from "./utils";
+import { SkynetClient } from "skynet-js";
+
+import { providerName, providerUrl } from "./consts";
 
 export type Interface = Record<string, Array<string>>;
-
-const providerUrl = location.hostname;
-const providerName = "identity-test-name";
-const uiW = 500;
-const uiH = 400;
-
-const loginKey = "login";
 
 type ProviderInfo = {
   providerInterface: Interface;
@@ -24,7 +22,7 @@ type ProviderMetadata = {
   domain: string;
 };
 
-class SkappInfo {
+export class SkappInfo {
   name: string;
   domain: string;
 
@@ -34,13 +32,17 @@ class SkappInfo {
   }
 }
 
-export class Provider {
+export abstract class Provider<T> {
   providerInfo: ProviderInfo;
 
   protected parentConnection: Connection;
   protected client: SkynetClient;
 
   constructor(providerInterface: Interface) {
+    if (typeof Storage == "undefined") {
+      throw new Error("Browser does not support web storage");
+    }
+
     // Set the provider info.
 
     this.providerInfo = {
@@ -57,11 +59,11 @@ export class Provider {
 
     const connection = connectToParent({
       methods: {
-        callInterface: this.callInterface,
-        connectSilently: this.connectSilently,
-        connectWithInput: this.connectWithInput,
-        disconnect: this.disconnect,
-        getMetadata: this.getMetadata,
+        callInterface: (method: string) => this.callInterface(method),
+        connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
+        connectWithInput: (skappInfo: SkappInfo) => this.connectWithInput(skappInfo),
+        disconnect: () => this.disconnect(),
+        getMetadata: () => this.getMetadata(),
       },
       timeout: 5_000,
     });
@@ -84,7 +86,6 @@ export class Provider {
     }
 
     if (method in this.providerInfo.providerInterface) {
-      // TODO: Unignore
       // @ts-ignore
       return this[method]();
     } else {
@@ -95,56 +96,60 @@ export class Provider {
   }
 
   /**
-   * Tries to connect to the provider, connecting even if the user isn't already logged in to the provider (as opposed to connectSilently()).
-   */
-  protected async connectWithInput(skappInfo: SkappInfo): Promise<Interface> {
-    // Check if user is connected already.
-
-    let connectedSeed = this.getConnectedSeed();
-    if (!connectedSeed) {
-      connectedSeed = await this.queryUserForSeed();
-      if (!connectedSeed) {
-        throw new Error("could not get a stored seed or a seed from the user");
-      }
-      this.saveConnectedSeed(connectedSeed);
-    }
-
-    // Check if skapp is permissioned.
-
-    if (!await this.checkSkappPermissions(connectedSeed, skappInfo)) {
-      const permission = this.queryUserForSkappPermission(skappInfo);
-      if (!permission) {
-        throw new Error("could not get stored permissions or permissions from the user");
-      }
-      this.saveSkappPermissions(connectedSeed, skappInfo);
-    }
-
-    return this.providerInfo.providerInterface;
-  }
-
-  protected async disconnect(): Promise<void> {
-    this.clearConnectedSeed();
-    this.providerInfo.isProviderConnected = false;
-  }
-
-  /**
    * Tries to connect to the provider, only connecting if the user is already logged in to the provider (as opposed to connectWithInput()).
    */
   protected async connectSilently(skappInfo: SkappInfo): Promise<Interface> {
     // Check if user is connected already.
 
-    const connectedSeed = this.getConnectedSeed();
-    if (!connectedSeed) {
+    const connectedInfo = await this.fetchConnectedInfo();
+    if (!connectedInfo) {
       throw new Error("not connected");
     }
 
     // Check if skapp is permissioned.
 
-    if (!this.checkSkappPermissions(connectedSeed, skappInfo)) {
+    if (!await this.fetchSkappPermissions(connectedInfo, skappInfo)) {
       throw new Error("skapp not permissioned");
     }
 
+    this.providerInfo.isProviderConnected = true;
     return this.providerInfo.providerInterface;
+  }
+
+  /**
+   * Tries to connect to the provider, connecting even if the user isn't already logged in to the provider (as opposed to connectSilently()).
+   */
+  protected async connectWithInput(skappInfo: SkappInfo): Promise<Interface> {
+    // Check if user is connected already.
+
+    let connectedInfo = await this.fetchConnectedInfo();
+    if (!connectedInfo) {
+      connectedInfo = await this.queryUserForConnection();
+      if (!connectedInfo) {
+        throw new Error("could not get a stored connection or a connection from the user");
+      }
+      connectedInfo = await this.saveConnectedInfo(connectedInfo);
+    }
+
+    // Check if skapp is permissioned.
+
+    let permission = await this.fetchSkappPermissions(connectedInfo, skappInfo);
+    if (!permission) {
+      permission = await this.queryUserForSkappPermission(skappInfo);
+      await this.saveSkappPermissions(connectedInfo, skappInfo, permission);
+    }
+
+      if (!permission) {
+        throw new Error("could not get stored permissions or permissions from the user");
+      }
+
+    this.providerInfo.isProviderConnected = true;
+    return this.providerInfo.providerInterface;
+  }
+
+  protected async disconnect(): Promise<void> {
+    await this.clearConnectedInfo();
+    this.providerInfo.isProviderConnected = false;
   }
 
   protected async getMetadata(): Promise<ProviderMetadata> {
@@ -152,98 +157,20 @@ export class Provider {
   }
 
   // =========================
-  // Internal Provider Methods
+  // Required Provider Methods
   // =========================
 
-  protected async checkSkappPermissions(connectedSeed: string, skappInfo: SkappInfo): Promise<boolean> {
-    const childSeed = deriveChildSeed(connectedSeed, skappInfo.domain);
-    const { publicKey } = genKeyPairFromSeed(childSeed);
-    const { permission } = await this.client.db.getJSON(publicKey, providerUrl);
-    return permission === skappInfo.domain;
-  }
+  protected abstract clearConnectedInfo(): Promise<void>;
 
-  protected clearConnectedSeed(): void {
-    localStorage.removeItem(loginKey);
-  }
+  protected abstract fetchConnectedInfo(): Promise<T | null>;
 
-  protected getConnectedSeed(): string | null {
-    return localStorage.getItem(loginKey);
-  }
+  protected abstract saveConnectedInfo(connectedInfo: T): Promise<T>;
 
-  // TODO: should check periodically if window is still open.
-  /**
-   * Creates window with login UI and waits for a response.
-   */
-  protected async queryUserForSeed(): Promise<string> {
-    // Set the ui URL.
-    const identityUiUrl = "identity.html";
+  protected abstract queryUserForConnection(): Promise<T>;
 
-    const promise: Promise<string> = new Promise((resolve, reject) => {
-      // Register a message listener.
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== location.origin)
-          return;
+  protected abstract fetchSkappPermissions(connectedInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
 
-        window.removeEventListener("message", handleMessage);
+  protected abstract saveSkappPermissions(connectedInfo: T, skappInfo: SkappInfo, permission: boolean): Promise<void>;
 
-        // Resolve or reject the promise.
-        if (event.data === "") {
-          reject(new Error("did not get a seed"));
-        }
-        resolve(event.data);
-      };
-
-      window.addEventListener("message", handleMessage);
-    });
-
-    // Open the ui.
-    const newWindow = popupCenter(identityUiUrl, providerName, uiW, uiH);
-
-    return promise;
-  }
-
-  // TODO: should check periodically if window is still open.
-  /**
-   * Creates window with permissions UI and waits for a response.
-   */
-  protected async queryUserForSkappPermission(skappInfo: SkappInfo): Promise<boolean> {
-    // Set the ui URL.
-    const permissionsUiUrl = `permissions.html?name=${skappInfo.name}&domain=${skappInfo.domain}`;
-
-    const promise: Promise<boolean> = new Promise((resolve, reject) => {
-      // Register a message listener.
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== location.origin)
-          return;
-
-        window.removeEventListener("message", handleMessage);
-
-        // Resolve or reject the promise.
-        if (event.data === "grant") {
-          resolve(true);
-        } else if (event.data === "deny") {
-          resolve(false);
-        }
-        // If window closed, don't deny the permission -- fail the operation instead.
-        reject(new Error("permissions were neither granted nor denied"));
-      };
-
-      window.addEventListener("message", handleMessage);
-    });
-
-    // Open the ui.
-    const newWindow = popupCenter(permissionsUiUrl, providerName, uiW, uiH);
-
-    return promise;
-  }
-
-  protected saveConnectedSeed(connectedSeed: string): void {
-    localStorage.setItem(loginKey, connectedSeed);
-  }
-
-  protected async saveSkappPermissions(connectedSeed: string, skappInfo: SkappInfo): Promise<void> {
-    const childSeed = deriveChildSeed(connectedSeed, skappInfo.domain);
-    const { privateKey } = genKeyPairFromSeed(childSeed);
-    return this.client.db.setJSON(privateKey, providerUrl, { permission: skappInfo.domain });
-  }
+  protected abstract queryUserForSkappPermission(skappInfo: SkappInfo): Promise<boolean>;
 }

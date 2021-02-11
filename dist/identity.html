@@ -35,12 +35,14 @@
       }
 
       .btn {
+          display: inline-block;
+          
           margin-top: 1em;
           margin-bottom: 1em;
           padding: 0.5em 2em;
           border: none;
           border-radius: 8px;
-          
+
           cursor: pointer;
           background: #57b560;
           color: white;
@@ -69,15 +71,6 @@
           cursor: not-allowed;
       }
 
-      #identity-container {
-          position: relative;
-          width: 300px;
-          height: 200px;
-
-          border: 1px solid black;
-          border-radius: 5px;
-      }
-
       .identity-screen {
           display: none;
       }
@@ -86,37 +79,64 @@
           margin-top: 2em;
           width: 400px;
       }
-      
+
     </style>
   </head>
 
   <body>
     <div class="wrapper">
-      <!-- Display identity info -->
-      <div id="identity-container">
-
-        <div id="identity-logged-out" class="identity-screen center">
-          <h1>Logged Out</h1>
-          <div>
-            <b>Sign in</b> with your passphrase, or <b>sign up</b> for a new account.
-          </div>
-          <button id="button-logged-out-sign-in" class="btn" onclick="window.goToSignIn()">
-            Sign in
-          </button>
-          <button id="button-logged-out-sign-up" class="btn" onclick="window.goToSignUp()">
-            Sign up
-          </button>
+      <div id="identity-logged-out" class="identity-screen center">
+        <h1>Logged Out</h1>
+        <div>
+          <b>Sign in</b> with your passphrase, or <b>sign up</b> for a new account.
         </div>
 
-        <div id="identity-sign-in" class="identity-screen center">
-          <h1>Sign In</h1>
-          <div>
-            <!-- TODO -->
-          </div>
+        <button id="button-logged-out-sign-in" class="btn" onclick="window.goToSignIn()">
+          Sign in
+        </button>
+        <button id="button-logged-out-sign-up" class="btn" onclick="window.goToSignUp()">
+          Sign up
+        </button>
+      </div>
+
+      <div id="identity-sign-in" class="identity-screen center">
+        <h1>Sign In</h1>
+        <div>
+          Enter your passphrase:
+        </div>
+        <div>
+          <input type="text" id="signin-passphrase-text" name="passphrase-text" width+"100%"/>
         </div>
 
-        <!-- TODO -->
+        <button id="button-back" class="btn" onclick="window.goToLoggedOut()">
+          Back
+        </button>
+        <button id="button-sign-in" class="btn" onclick="window.signIn()">
+          Sign In
+        </button>
+      </div>
 
+      <div id="identity-sign-up" class="identity-screen center">
+        <h1>Sign Up</h1>
+        <div>
+          Passphrase:
+        </div>
+        <div>
+          <input type="text" id="signup-passphrase-text" name="passphrase-text" width+"100%"/>
+        </div>
+        <div>
+          Enter your desired username:
+        </div>
+        <div>
+          <input type="text" id="username-text" name="passphrase-text" width+"100%"/>
+        </div>
+
+        <button id="button-back" class="btn" onclick="window.goToLoggedOut()">
+          Back
+        </button>
+        <button id="button-sign-up" class="btn" onclick="window.signUp()">
+          Sign Up
+        </button>
       </div>
     </div>
 
@@ -125,28 +145,68 @@
       const uiIdentitySignIn = document.getElementById("identity-sign-in");
       const uiIdentitySignUp = document.getElementById("identity-sign-up");
 
+      let submitted = false;
+
       window.goToLoggedOut = () => {
         setAllIdentityContainersInvisible();
-        uiIdentityLoggedOut!.style.display = "block";
+        uiIdentityLoggedOut.style.display = "block";
       }
 
       window.goToSignIn = () => {
         setAllIdentityContainersInvisible();
-        uiIdentitySignIn!.style.display = "block";
+        uiIdentitySignIn.style.display = "block";
       }
 
       window.goToSignUp = () => {
         setAllIdentityContainersInvisible();
-        uiIdentitySignUp!.style.display = "block";
+        uiIdentitySignUp.style.display = "block";
+      }
+
+      window.signIn = () => {
+        const seedValue = document.getElementById("signin-passphrase-text").value;
+
+        // Send the value back to queryUserForConnection().
+        const connectedInfo = { seed: seedValue, identity: "" };
+        window.opener.postMessage(connectedInfo, location.origin);
+
+        // Close this window.
+        submitted = true;
+        window.close();
+      }
+
+      window.signUp = () => {
+        const seedValue = document.getElementById("signup-passphrase-text").value;
+        const usernameValue = document.getElementById("username-text").value;
+
+        // Send the values back to queryUserForConnection().
+        const connectedInfo = { seed: seedValue, identity: usernameValue };
+        window.opener.postMessage(connectedInfo, location.origin);
+
+        // Close this window.
+        submitted = true;
+        window.close();
       }
 
       function setAllIdentityContainersInvisible() {
-        uiIdentityLoggedOut!.style.display = "none";
-        uiIdentitySignIn!.style.display = "none";
-        uiIdentitySignUp!.style.display = "none";
+        uiIdentityLoggedOut.style.display = "none";
+        uiIdentitySignIn.style.display = "none";
+        uiIdentitySignUp.style.display = "none";
       }
 
-      window.goToLoggedOut();
+      // Event that is triggered when the window is closed.
+      window.onbeforeunload = () => {
+        if (!submitted) {
+          // Send a blank value to signify that window was closed.
+          window.opener.postMessage(null, location.origin);
+        }
+
+        return null;
+      }
+
+      // Code that runs on page load.
+      window.onload = (event) => {
+        window.goToLoggedOut();
+      }
     </script>
   </body>
 </html>
