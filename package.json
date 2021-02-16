@@ -6,12 +6,13 @@
   "browserslist": [
     "defaults",
     "not IE 11",
-    "not OperaMini all"
+    "not OperaMini all",
+    "not Baidu <= 100"
   ],
   "scripts": {
-    "build": "npx webpack",
+    "build": "npx webpack && tsc --project tsconfig.scripts.json",
     "lint:eslint": "eslint --ext .ts src",
-    "lint:tsc": "tsc",
+    "lint:tsc": "tsc --noemit && tsc --noemit --project tsconfig.scripts.json",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "repository": {
