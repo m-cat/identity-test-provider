@@ -2,8 +2,8 @@
  * Generic provider code.
  */
 
-import { connectToParent } from "penpal";
-import { Connection } from "penpal/lib/types";
+import { ChildHandshake, WindowMessenger } from "post-me";
+import type { Connection } from "post-me";
 import { SkynetClient } from "skynet-js";
 
 import { providerName, providerUrl } from "./consts";
@@ -35,7 +35,7 @@ export class SkappInfo {
 export abstract class Provider<T> {
   providerInfo: ProviderInfo;
 
-  protected parentConnection: Connection;
+  protected parentConnection: Promise<Connection>;
   protected client: SkynetClient;
 
   constructor(providerInterface: Interface) {
@@ -57,17 +57,19 @@ export abstract class Provider<T> {
 
     // Enable communication with parent skapp.
 
-    const connection = connectToParent({
-      methods: {
+    const methods = {
         callInterface: (method: string) => this.callInterface(method),
         connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
         connectWithInput: (skappInfo: SkappInfo) => this.connectWithInput(skappInfo),
         disconnect: () => this.disconnect(),
         getMetadata: () => this.getMetadata(),
-      },
-      timeout: 5_000,
+    };
+    const messenger = new WindowMessenger({
+      localWindow: window,
+      remoteWindow: window.parent,
+      remoteOrigin: "*",
     });
-    this.parentConnection = connection;
+    this.parentConnection = ChildHandshake(messenger, methods);
 
     // Initialize the Skynet client.
     this.client = new SkynetClient();
@@ -86,7 +88,7 @@ export abstract class Provider<T> {
     }
 
     if (method in this.providerInfo.providerInterface) {
-      // @ts-ignore
+      // @ts-expect-error TS doesn't like this.
       return this[method]();
     } else {
       throw new Error(

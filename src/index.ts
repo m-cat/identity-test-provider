@@ -78,7 +78,10 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
 
     try {
       const { data } = await this.client.db.getJSON(publicKey, providerUrl);
-      if (!data.permission) {
+      if (!data || !data.permission) {
+        return null;
+      }
+      if (typeof data.permission !== "boolean") {
         return null;
       }
 
@@ -195,7 +198,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     if (!data) {
       throw new Error("Login info not found for given seed");
     }
-    if (!data.identity) {
+    if (!data.identity || typeof data.identity !== "string") {
       throw new Error("Identity not found for given seed");
     }
     return data.identity;
