@@ -6,8 +6,8 @@ import type { Interface } from "./provider";
 import { popupCenter } from "./utils";
 
 type ConnectedInfo = {
-  seed: string,
-  identity: string,
+  seed: string;
+  identity: string;
 };
 
 export class IdentityProvider extends Provider<ConnectedInfo> {
@@ -54,6 +54,8 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
 
   /**
    * Saves the seed and identity for the user. If the identity was not provided, we will look it up and return it.
+   *
+   * @param connectedInfo
    */
   protected async saveConnectedInfo(connectedInfo: ConnectedInfo): Promise<ConnectedInfo> {
     // Empty identity means the user signed in.
@@ -66,7 +68,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     // Save the seed in local storage.
     localStorage.setItem(loginKey, connectedInfo.seed);
 
-    this.connectedInfo = connectedInfo
+    this.connectedInfo = connectedInfo;
     return connectedInfo;
   }
 
@@ -86,7 +88,11 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     }
   }
 
-  protected async saveSkappPermissions(connectedInfo: ConnectedInfo, skappInfo: SkappInfo, permission: boolean): Promise<void> {
+  protected async saveSkappPermissions(
+    connectedInfo: ConnectedInfo,
+    skappInfo: SkappInfo,
+    permission: boolean
+  ): Promise<void> {
     const childSeed = deriveChildSeed(connectedInfo.seed, skappInfo.domain);
     const { privateKey } = genKeyPairFromSeed(childSeed);
     return this.client.db.setJSON(privateKey, providerUrl, { permission });
@@ -103,8 +109,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     const promise: Promise<ConnectedInfo> = new Promise((resolve, reject) => {
       // Register a message listener.
       const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== location.origin)
-          return;
+        if (event.origin !== location.origin) return;
 
         window.removeEventListener("message", handleMessage);
 
@@ -131,6 +136,8 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   // TODO: should check periodically if window is still open.
   /**
    * Creates window with permissions UI and waits for a response.
+   *
+   * @param skappInfo
    */
   protected async queryUserForSkappPermission(skappInfo: SkappInfo): Promise<boolean> {
     // Set the ui URL.
@@ -139,8 +146,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     const promise: Promise<boolean> = new Promise((resolve, reject) => {
       // Register a message listener.
       const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== location.origin)
-          return;
+        if (event.origin !== location.origin) return;
 
         window.removeEventListener("message", handleMessage);
 
@@ -185,9 +191,12 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
 
   protected async fetchIdentityUsingSeed(seed: string): Promise<string> {
     const { publicKey } = genKeyPairFromSeed(seed);
-    const { data } =  await this.client.db.getJSON(publicKey, providerUrl, { timeout: 10 });
+    const { data } = await this.client.db.getJSON(publicKey, providerUrl, { timeout: 10 });
+    if (!data) {
+      throw new Error("Login info not found for given seed");
+    }
     if (!data.identity) {
-      throw new Error("identity not found on returned data object");
+      throw new Error("Identity not found for given seed");
     }
     return data.identity;
   }
