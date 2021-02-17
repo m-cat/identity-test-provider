@@ -56,8 +56,8 @@ function setAllIdentityContainersInvisible() {
 // Event that is triggered when the window is closed.
 window.onbeforeunload = () => {
   if (!submittedIdentity) {
-    // Send a blank value to signify that window was closed.
-    window.opener.postMessage(null, location.origin);
+    // Send a value to signify that window was closed.
+    window.opener.postMessage("closed", location.origin);
   }
 
   return null;

@@ -33,12 +33,22 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   // =========================
 
   protected async clearConnectedInfo(): Promise<void> {
-    localStorage.removeItem(loginKey);
-
     this.connectedInfo = undefined;
+
+    if (!localStorage) {
+      console.log("WARNING: localStorage disabled");
+      return;
+    }
+
+    localStorage.removeItem(loginKey);
   }
 
   protected async fetchConnectedInfo(): Promise<ConnectedInfo | null> {
+    if (!localStorage) {
+      console.log("WARNING: localStorage disabled");
+      return null;
+    }
+
     const seed = localStorage.getItem(loginKey);
     if (!seed) {
       return null;
@@ -66,7 +76,11 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     }
 
     // Save the seed in local storage.
-    localStorage.setItem(loginKey, connectedInfo.seed);
+    if (!localStorage) {
+      console.log("WARNING: localStorage disabled");
+    } else {
+      localStorage.setItem(loginKey, connectedInfo.seed);
+    }
 
     this.connectedInfo = connectedInfo;
     return connectedInfo;
@@ -105,11 +119,11 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   /**
    * Creates window with login UI and waits for a response.
    */
-  protected async queryUserForConnection(): Promise<ConnectedInfo> {
+  protected async queryUserForConnection(): Promise<ConnectedInfo | null> {
     // Set the ui URL.
     const identityUiUrl = "identity.html";
 
-    const promise: Promise<ConnectedInfo> = new Promise((resolve, reject) => {
+    const promise: Promise<ConnectedInfo | null> = new Promise((resolve, reject) => {
       // Register a message listener.
       const handleMessage = (event: MessageEvent) => {
         if (event.origin !== location.origin) return;
@@ -117,12 +131,19 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
         window.removeEventListener("message", handleMessage);
 
         // Resolve or reject the promise.
-        if (!event.data || !event.data.seed) {
-          reject(new Error("did not get connection info"));
+        if (!event.data) {
+          reject(new Error("Invalid data returned"));
+        }
+        if (event.data === "closed") {
+          resolve(null);
         }
         const { seed } = event.data;
+        if (!seed) {
+          reject(new Error("Invalid seed returned"));
+        }
         if (seed === "") {
-          reject(new Error("invalid seed"));
+          // TODO: Form should prevent sending an empty seed.
+          reject(new Error("No seed returned"));
         }
         resolve(event.data);
       };

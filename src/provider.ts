@@ -128,7 +128,7 @@ export abstract class Provider<T> {
     if (!connectedInfo) {
       connectedInfo = await this.queryUserForConnection();
       if (!connectedInfo) {
-        throw new Error("could not get a stored connection or a connection from the user");
+        return this.providerInfo.providerInterface;
       }
       connectedInfo = await this.saveConnectedInfo(connectedInfo);
     }
@@ -142,7 +142,7 @@ export abstract class Provider<T> {
     }
 
       if (!permission) {
-        throw new Error("could not get stored permissions or permissions from the user");
+        return this.providerInfo.providerInterface;
       }
 
     this.providerInfo.isProviderConnected = true;
@@ -168,7 +168,7 @@ export abstract class Provider<T> {
 
   protected abstract saveConnectedInfo(connectedInfo: T): Promise<T>;
 
-  protected abstract queryUserForConnection(): Promise<T>;
+  protected abstract queryUserForConnection(): Promise<T | null>;
 
   protected abstract fetchSkappPermissions(connectedInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
 
