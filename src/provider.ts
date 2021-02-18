@@ -6,11 +6,11 @@ import { ChildHandshake, WindowMessenger } from "post-me";
 import type { Connection } from "post-me";
 import { SkynetClient } from "skynet-js";
 
-import { providerName, providerUrl } from "./consts";
+import { providerName, providerUrl, relativeConnectUrl } from "./consts";
 
 export type Interface = Record<string, Array<string>>;
 
-type ProviderInfo = {
+type ProviderStatus = {
   providerInterface: Interface;
   isProviderConnected: boolean;
   isProviderLoaded: boolean;
@@ -20,6 +20,7 @@ type ProviderInfo = {
 type ProviderMetadata = {
   name: string;
   domain: string;
+  relativeConnectUrl: string;
 };
 
 export class SkappInfo {
@@ -33,7 +34,7 @@ export class SkappInfo {
 }
 
 export abstract class Provider<T> {
-  providerInfo: ProviderInfo;
+  providerStatus: ProviderStatus;
 
   protected parentConnection: Promise<Connection>;
   protected client: SkynetClient;
@@ -45,13 +46,14 @@ export abstract class Provider<T> {
 
     // Set the provider info.
 
-    this.providerInfo = {
+    this.providerStatus = {
       providerInterface,
       isProviderLoaded: true,
       isProviderConnected: false,
       metadata: {
         name: providerName,
         domain: providerUrl,
+        relativeConnectUrl,
       },
     };
 
@@ -80,14 +82,14 @@ export abstract class Provider<T> {
   // ===================
 
   protected async callInterface(method: string): Promise<unknown> {
-    if (!this.providerInfo.isProviderConnected) {
+    if (!this.providerStatus.isProviderConnected) {
       throw new Error("Provider not connected, cannot access interface");
     }
-    if (!this.providerInfo.providerInterface) {
+    if (!this.providerStatus.providerInterface) {
       throw new Error("Provider interface not present. Possible logic bug");
     }
 
-    if (!(method in this.providerInfo.providerInterface)) {
+    if (!(method in this.providerStatus.providerInterface)) {
       throw new Error(
         `Unsupported method for this provider interface. Method: '${method}'`
       );
@@ -119,8 +121,8 @@ export abstract class Provider<T> {
       throw new Error("skapp not permissioned");
     }
 
-    this.providerInfo.isProviderConnected = true;
-    return this.providerInfo.providerInterface;
+    this.providerStatus.isProviderConnected = true;
+    return this.providerStatus.providerInterface;
   }
 
   /**
@@ -133,7 +135,7 @@ export abstract class Provider<T> {
     if (!connectedInfo) {
       connectedInfo = await this.queryUserForConnection();
       if (!connectedInfo) {
-        return this.providerInfo.providerInterface;
+        return this.providerStatus.providerInterface;
       }
       connectedInfo = await this.saveConnectedInfo(connectedInfo);
     }
@@ -147,20 +149,20 @@ export abstract class Provider<T> {
     }
 
       if (!permission) {
-        return this.providerInfo.providerInterface;
+        return this.providerStatus.providerInterface;
       }
 
-    this.providerInfo.isProviderConnected = true;
-    return this.providerInfo.providerInterface;
+    this.providerStatus.isProviderConnected = true;
+    return this.providerStatus.providerInterface;
   }
 
   protected async disconnect(): Promise<void> {
     await this.clearConnectedInfo();
-    this.providerInfo.isProviderConnected = false;
+    this.providerStatus.isProviderConnected = false;
   }
 
   protected async getMetadata(): Promise<ProviderMetadata> {
-    return this.providerInfo.metadata;
+    return this.providerStatus.metadata;
   }
 
   // =========================
