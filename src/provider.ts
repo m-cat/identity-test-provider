@@ -87,14 +87,19 @@ export abstract class Provider<T> {
       throw new Error("Provider interface not present. Possible logic bug");
     }
 
-    if (method in this.providerInfo.providerInterface) {
-      // @ts-expect-error TS doesn't like this.
-      return this[method]();
-    } else {
+    if (!(method in this.providerInfo.providerInterface)) {
       throw new Error(
-        `Unsupported method for this provider interface. Method: '${method}', Interface: ${this.providerInfo.providerInterface}`
+        `Unsupported method for this provider interface. Method: '${method}'`
       );
     }
+    // @ts-expect-error TS doesn't like this.
+    if (!this[method]) {
+      throw new Error(
+        `Unimplemented interface method. Method: '${method}'`
+      );
+    }
+    // @ts-expect-error TS doesn't like this.
+    return this[method]();
   }
 
   /**
