@@ -6,65 +6,50 @@ import { ChildHandshake, WindowMessenger } from "post-me";
 import type { Connection } from "post-me";
 import { SkynetClient } from "skynet-js";
 
-import { providerName, providerUrl, relativeConnectUrl } from "./consts";
-
 export type Interface = Record<string, Array<string>>;
 
-type ProviderStatus = {
-  providerInterface: Interface;
-  isProviderConnected: boolean;
-  isProviderLoaded: boolean;
-  metadata: ProviderMetadata;
+export type ProviderMetadata = {
+  name: string;
+  url: string;
+
+  relativeConnectorPath: string;
+  connectorName: string;
+  connectorW: number;
+  connectorH: number;
 };
 
-type ProviderMetadata = {
+export type SkappInfo = {
   name: string;
   domain: string;
-  relativeConnectUrl: string;
-};
-
-export class SkappInfo {
-  name: string;
-  domain: string;
-
-  constructor(name: string) {
-    this.name = name;
-    this.domain = location.hostname;
-  }
 }
 
 export abstract class Provider<T> {
-  providerStatus: ProviderStatus;
+  isProviderConnected: boolean;
+  metadata: ProviderMetadata;
+  providerInterface: Interface;
 
-  protected parentConnection: Promise<Connection>;
   protected client: SkynetClient;
+  protected parentConnection: Promise<Connection>;
 
-  constructor(providerInterface: Interface) {
+  constructor(providerInterface: Interface, metadata: ProviderMetadata) {
     if (typeof Storage == "undefined") {
       throw new Error("Browser does not support web storage");
     }
 
     // Set the provider info.
 
-    this.providerStatus = {
-      providerInterface,
-      isProviderLoaded: true,
-      isProviderConnected: false,
-      metadata: {
-        name: providerName,
-        domain: providerUrl,
-        relativeConnectUrl,
-      },
-    };
+    this.providerInterface = providerInterface;
+    this.isProviderConnected = false;
+    this.metadata = metadata;
 
     // Enable communication with parent skapp.
 
     const methods = {
-        callInterface: (method: string) => this.callInterface(method),
-        connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
-        connectWithInput: (skappInfo: SkappInfo) => this.connectWithInput(skappInfo),
-        disconnect: () => this.disconnect(),
-        getMetadata: () => this.getMetadata(),
+      callInterface: (method: string) => this.callInterface(method),
+      connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
+      connectWithInput: (connectedInfo: T) => this.connectWithInput(connectedInfo),
+      disconnect: () => this.disconnect(),
+      getMetadata: () => this.getMetadata(),
     };
     const messenger = new WindowMessenger({
       localWindow: window,
@@ -74,6 +59,7 @@ export abstract class Provider<T> {
     this.parentConnection = ChildHandshake(messenger, methods);
 
     // Initialize the Skynet client.
+
     this.client = new SkynetClient();
   }
 
@@ -82,23 +68,19 @@ export abstract class Provider<T> {
   // ===================
 
   protected async callInterface(method: string): Promise<unknown> {
-    if (!this.providerStatus.isProviderConnected) {
+    if (!this.isProviderConnected) {
       throw new Error("Provider not connected, cannot access interface");
     }
-    if (!this.providerStatus.providerInterface) {
+    if (!this.providerInterface) {
       throw new Error("Provider interface not present. Possible logic bug");
     }
 
-    if (!(method in this.providerStatus.providerInterface)) {
-      throw new Error(
-        `Unsupported method for this provider interface. Method: '${method}'`
-      );
+    if (!(method in this.providerInterface)) {
+      throw new Error(`Unsupported method for this provider interface. Method: '${method}'`);
     }
     // @ts-expect-error TS doesn't like this.
     if (!this[method]) {
-      throw new Error(
-        `Unimplemented interface method. Method: '${method}'`
-      );
+      throw new Error(`Unimplemented interface method. Method: '${method}'`);
     }
     // @ts-expect-error TS doesn't like this.
     return this[method]();
@@ -107,63 +89,49 @@ export abstract class Provider<T> {
   /**
    * Tries to connect to the provider, only connecting if the user is already logged in to the provider (as opposed to connectWithInput()).
    */
-  protected async connectSilently(skappInfo: SkappInfo): Promise<Interface> {
+  protected async connectSilently(skappInfo: SkappInfo): Promise<Interface | null> {
     // Check if user is connected already.
 
     const connectedInfo = await this.fetchConnectedInfo();
     if (!connectedInfo) {
-      throw new Error("not connected");
+      return null;
     }
 
     // Check if skapp is permissioned.
 
-    if (!await this.fetchSkappPermissions(connectedInfo, skappInfo)) {
-      throw new Error("skapp not permissioned");
+    if (!(await this.fetchSkappPermissions(connectedInfo, skappInfo))) {
+      return null;
     }
 
-    this.providerStatus.isProviderConnected = true;
-    return this.providerStatus.providerInterface;
+    this.isProviderConnected = true;
+    return this.providerInterface;
   }
 
   /**
-   * Tries to connect to the provider, connecting even if the user isn't already logged in to the provider (as opposed to connectSilently()).
+   * Completes a connection to the provider initiated in the connector. Triggered after receiving connection info from the connector.
    */
-  protected async connectWithInput(skappInfo: SkappInfo): Promise<Interface> {
-    // Check if user is connected already.
+  protected async connectWithInput(connectedInfo: T): Promise<Interface> {
+    // TODO: Validate the connectedInfo using required abstract function and send an error if invalid.
 
-    let connectedInfo = await this.fetchConnectedInfo();
-    if (!connectedInfo) {
-      connectedInfo = await this.queryUserForConnection();
-      if (!connectedInfo) {
-        return this.providerStatus.providerInterface;
-      }
-      connectedInfo = await this.saveConnectedInfo(connectedInfo);
-    }
+    // Save the connected info.
+    await this.saveConnectedInfo(connectedInfo);
 
-    // Check if skapp is permissioned.
-
-    let permission = await this.fetchSkappPermissions(connectedInfo, skappInfo);
-    if (!permission) {
-      permission = await this.queryUserForSkappPermission(skappInfo);
-      await this.saveSkappPermissions(connectedInfo, skappInfo, permission);
-    }
-
-      if (!permission) {
-        return this.providerStatus.providerInterface;
-      }
-
-    this.providerStatus.isProviderConnected = true;
-    return this.providerStatus.providerInterface;
+    this.isProviderConnected = true;
+    return this.providerInterface;
   }
 
   protected async disconnect(): Promise<void> {
     await this.clearConnectedInfo();
-    this.providerStatus.isProviderConnected = false;
+    this.isProviderConnected = false;
   }
 
   protected async getMetadata(): Promise<ProviderMetadata> {
-    return this.providerStatus.metadata;
+    return this.metadata;
   }
+
+  //=================
+  // Internal Methods
+  // ================
 
   // =========================
   // Required Provider Methods
@@ -173,13 +141,7 @@ export abstract class Provider<T> {
 
   protected abstract fetchConnectedInfo(): Promise<T | null>;
 
-  protected abstract saveConnectedInfo(connectedInfo: T): Promise<T>;
-
-  protected abstract queryUserForConnection(): Promise<T | null>;
-
   protected abstract fetchSkappPermissions(connectedInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
 
-  protected abstract saveSkappPermissions(connectedInfo: T, skappInfo: SkappInfo, permission: boolean): Promise<void>;
-
-  protected abstract queryUserForSkappPermission(skappInfo: SkappInfo): Promise<boolean>;
+  protected abstract saveConnectedInfo(connectedInfo: T): Promise<T>;
 }
