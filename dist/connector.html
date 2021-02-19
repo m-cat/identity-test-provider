@@ -66,11 +66,6 @@
           text-align: center;
       }
 
-      .loading {
-          background: gray !important;
-          cursor: not-allowed;
-      }
-
       .identity-screen {
           display: none;
       }
@@ -97,11 +92,30 @@
           font-size: 13px;
       }
 
+      /* Deactivate container div */
+      .darkClass {
+          background-color: white;
+          filter: alpha(opacity=70); /* IE */
+          opacity: 0.7; /* Safari, Opera */
+          -moz-opacity: 0.7; /* FireFox */
+          z-index: 20;
+          height: 100%;
+          width: 100%;
+          background-repeat: no-repeat;
+          background-position: center;
+          position: absolute;
+          top: 0px;
+          left: 0px;
+      }
+
     </style>
   </head>
 
   <body>
     <div class="wrapper">
+      <!-- For deactivating the identity container -->
+      <div id="darkLayer" class="darkClass" style="display:none"></div>
+
       <div id="identity-logged-out" class="identity-screen center">
         <h1>Logged Out</h1>
         <div>
@@ -153,23 +167,23 @@
         </button>
       </div>
 
-    <div id="permissions" class="permission-screen center">>
-      <h1>Permissions</h1>
-      <img id="exclamation" src="assets/exclamation.svg" width="50px">
-      <div>
-        <span class="skapp-name"></span> requests permissions to access your data.
+      <div id="permissions" class="permission-screen center">
+        <h1>Permissions</h1>
+        <img id="exclamation" src="assets/exclamation.svg" width="50px">
+        <div>
+          <span class="skapp-name"></span> requests permissions to access your data.
+        </div>
+        <div>
+          Please make sure that <span class="skapp-name"></span> is a trusted source, and that it is coming from the following domain:
+        </div>
+        <div class="skapp-domain"> </div>
+        <button id="permissions-deny" class="btn" onclick="window.deny()">
+          Deny
+        </button>
+        <button id="permissions-grant" class="btn" onclick="window.grant()">
+          Grant Access
+        </button>
       </div>
-      <div>
-        Please make sure that <span class="skapp-name"></span> is a trusted source, and that it is coming from the following domain:
-      </div>
-      <div class="skapp-domain"> </div>
-      <button id="permissions-deny" class="btn" onclick="window.deny()">
-        Deny
-      </button>
-      <button id="permissions-grant" class="btn" onclick="window.grant()">
-        Grant Access
-      </button>
-    </div>
 
     </div>
 

@@ -1,6 +1,6 @@
 import { SkynetClient } from "skynet-js";
 
-import { fetchSkappPermissions, saveSkappPermissions } from "../src/identity-provider";
+import { fetchIdentityUsingSeed, fetchSkappPermissions, saveSkappPermissions } from "../src/identity-provider";
 
 type ConnectedInfo = {
   seed: string;
@@ -140,12 +140,14 @@ window.onload = () => {
 // ==============
 
 function goToPermissions() {
+  activateUI();
   setAllIdentityContainersInvisible();
   uiPermissions.style.display = "block";
 };
 
 async function handleConnectedInfo() {
   submitted = true;
+  deactivateUI();
 
   if (!connectedInfo) {
     returnMessage("Connected info not found");
@@ -158,6 +160,20 @@ async function handleConnectedInfo() {
   if (!bridgeWindow) {
     returnMessage("Bridge window not found");
     return;
+  }
+
+  let { seed, identity } = connectedInfo;
+  if (!seed) {
+    returnMessage("Seed not found");
+    return;
+  }
+  if (!identity) {
+    try {
+      identity = await fetchIdentityUsingSeed(client, connectedInfo.seed);
+    } catch (error) {
+      returnMessage(error);
+      return;
+    }
   }
 
   const permission = await fetchSkappPermissions(client, connectedInfo, skappInfo);
@@ -174,7 +190,7 @@ async function handleConnectedInfo() {
     }
 
     // Send the connected info to the bridge.
-    bridgeWindow.postMessage(connectedInfo, location.origin);
+    bridgeWindow.postMessage({ messageType: "connectionComplete", connectedInfo }, "*");
     // Send success message to opening skapp.
     returnMessage("success");
     return;
@@ -186,6 +202,7 @@ async function handleConnectedInfo() {
 
 async function handlePermission(permission: boolean) {
   submitted = true;
+  deactivateUI();
 
   if (!connectedInfo) {
     returnMessage("Connected info not found");
@@ -204,7 +221,7 @@ async function handlePermission(permission: boolean) {
 
   if (permission) {
     // Send the connected info to the bridge.
-    bridgeWindow.postMessage(connectedInfo, location.origin);
+    bridgeWindow.postMessage({ messageType: "connectionComplete", connectedInfo }, "*");
     // Send success message to opening skapp.
     returnMessage("success");
   } else {
@@ -215,6 +232,20 @@ async function handlePermission(permission: boolean) {
 // ================
 // Helper Functions
 // ================
+
+/**
+ *
+ */
+export function activateUI() {
+  document.getElementById("darkLayer")!.style.display = "none";
+}
+
+/**
+ *
+ */
+export function deactivateUI() {
+  document.getElementById("darkLayer")!.style.display = "";
+}
 
 function returnMessage(message: string | Event) {
   window.opener.postMessage(message, "*");

@@ -17,6 +17,18 @@ type ConnectedInfo = {
   identity: string;
 };
 
+export async function fetchIdentityUsingSeed(client: SkynetClient, seed: string): Promise<string> {
+    const { publicKey } = genKeyPairFromSeed(seed);
+    const { data } = await client.db.getJSON(publicKey, providerUrl, { timeout: 10 });
+    if (!data) {
+      throw new Error("Login info not found for given seed");
+    }
+    if (!data.identity || typeof data.identity !== "string") {
+      throw new Error("Identity not found for given seed");
+    }
+    return data.identity;
+  }
+
 export async function fetchSkappPermissions(client: SkynetClient, connectedInfo: ConnectedInfo, skappInfo: SkappInfo): Promise<boolean | null> {
   const childSeed = deriveChildSeed(connectedInfo.seed, providerUrl);
   const { publicKey } = genKeyPairFromSeed(childSeed);
@@ -161,15 +173,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   // ================
 
   protected async fetchIdentityUsingSeed(seed: string): Promise<string> {
-    const { publicKey } = genKeyPairFromSeed(seed);
-    const { data } = await this.client.db.getJSON(publicKey, providerUrl, { timeout: 10 });
-    if (!data) {
-      throw new Error("Login info not found for given seed");
-    }
-    if (!data.identity || typeof data.identity !== "string") {
-      throw new Error("Identity not found for given seed");
-    }
-    return data.identity;
+    return fetchIdentityUsingSeed(this.client, seed);
   }
 
   protected async saveIdentityUsingSeed(identity: string, seed: string): Promise<void> {
