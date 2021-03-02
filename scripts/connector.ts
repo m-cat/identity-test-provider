@@ -128,11 +128,11 @@ window.onload = () => {
 // Permissions
 
 (window as any).deny = async () => {
-  await handlePermission(false);
+  await handlePermissions(false);
 };
 
 (window as any).grant = async () => {
-  await handlePermission(true);
+  await handlePermissions(true);
 };
 
 // ==============
@@ -200,7 +200,7 @@ async function handleConnectedInfo() {
   }
 }
 
-async function handlePermission(permission: boolean) {
+async function handlePermissions(permission: boolean) {
   submitted = true;
   deactivateUI();
 
