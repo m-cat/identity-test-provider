@@ -47,7 +47,7 @@ export abstract class Provider<T> {
     const methods = {
       callInterface: (method: string) => this.callInterface(method),
       connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
-      connectWithInput: (connectedInfo: T) => this.connectWithInput(connectedInfo),
+      connectWithInput: (connectionInfo: T) => this.connectWithInput(connectionInfo),
       disconnect: () => this.disconnect(),
       getMetadata: () => this.getMetadata(),
     };
@@ -92,14 +92,14 @@ export abstract class Provider<T> {
   protected async connectSilently(skappInfo: SkappInfo): Promise<Interface | null> {
     // Check if user is connected already.
 
-    const connectedInfo = await this.fetchConnectedInfo();
-    if (!connectedInfo) {
+    const connectionInfo = await this.fetchConnectedInfo();
+    if (!connectionInfo) {
       return null;
     }
 
     // Check if skapp is permissioned.
 
-    if (!(await this.fetchSkappPermissions(connectedInfo, skappInfo))) {
+    if (!(await this.fetchSkappPermissions(connectionInfo, skappInfo))) {
       return null;
     }
 
@@ -110,11 +110,11 @@ export abstract class Provider<T> {
   /**
    * Completes a connection to the provider initiated in the connector. Triggered after receiving connection info from the connector.
    */
-  protected async connectWithInput(connectedInfo: T): Promise<Interface> {
-    // TODO: Validate the connectedInfo using required abstract function and send an error if invalid.
+  protected async connectWithInput(connectionInfo: T): Promise<Interface> {
+    // TODO: Validate the connectionInfo using required abstract function and send an error if invalid.
 
     // Save the connected info.
-    await this.saveConnectedInfo(connectedInfo);
+    await this.saveConnectedInfo(connectionInfo);
 
     this.isProviderConnected = true;
     return this.providerInterface;
@@ -141,7 +141,7 @@ export abstract class Provider<T> {
 
   protected abstract fetchConnectedInfo(): Promise<T | null>;
 
-  protected abstract fetchSkappPermissions(connectedInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
+  protected abstract fetchSkappPermissions(connectionInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
 
-  protected abstract saveConnectedInfo(connectedInfo: T): Promise<T>;
+  protected abstract saveConnectedInfo(connectionInfo: T): Promise<T>;
 }

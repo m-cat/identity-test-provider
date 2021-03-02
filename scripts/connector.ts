@@ -21,7 +21,7 @@ let submitted = false;
 
 let client = new SkynetClient();
 
-let connectedInfo: ConnectedInfo | undefined = undefined;
+let connectionInfo: ConnectedInfo | undefined = undefined;
 let skappInfo: SkappInfo | undefined = undefined;
 let bridgeWindow: Window | undefined = undefined;
 
@@ -112,7 +112,7 @@ window.onload = () => {
 
 (window as any).signIn = async () => {
   const seedValue = (<HTMLInputElement>document.getElementById("signin-passphrase-text")).value;
-  connectedInfo = { seed: seedValue, identity: "" };
+  connectionInfo = { seed: seedValue, identity: "" };
 
   handleConnectedInfo();
 };
@@ -120,7 +120,7 @@ window.onload = () => {
 (window as any).signUp = async () => {
   const seedValue = (<HTMLInputElement>document.getElementById("signup-passphrase-text")).value;
   const usernameValue = (<HTMLInputElement>document.getElementById("username-text")).value;
-  connectedInfo = { seed: seedValue, identity: usernameValue };
+  connectionInfo = { seed: seedValue, identity: usernameValue };
 
   handleConnectedInfo();
 };
@@ -149,7 +149,7 @@ async function handleConnectedInfo() {
   submitted = true;
   deactivateUI();
 
-  if (!connectedInfo) {
+  if (!connectionInfo) {
     returnMessage("Connected info not found");
     return;
   }
@@ -162,21 +162,21 @@ async function handleConnectedInfo() {
     return;
   }
 
-  let { seed, identity } = connectedInfo;
+  let { seed, identity } = connectionInfo;
   if (!seed) {
     returnMessage("Seed not found");
     return;
   }
   if (!identity) {
     try {
-      identity = await fetchIdentityUsingSeed(client, connectedInfo.seed);
+      identity = await fetchIdentityUsingSeed(client, connectionInfo.seed);
     } catch (error) {
-      returnMessage(error);
+      returnMessage(error.message);
       return;
     }
   }
 
-  const permission = await fetchSkappPermissions(client, connectedInfo, skappInfo);
+  const permission = await fetchSkappPermissions(client, connectionInfo, skappInfo);
 
   if (permission === null) {
     submitted = false;
@@ -190,7 +190,7 @@ async function handleConnectedInfo() {
     }
 
     // Send the connected info to the bridge.
-    bridgeWindow.postMessage({ messageType: "connectionComplete", connectedInfo }, "*");
+    bridgeWindow.postMessage({ messageType: "connectionComplete", connectionInfo }, "*");
     // Send success message to opening skapp.
     returnMessage("success");
     return;
@@ -204,7 +204,7 @@ async function handlePermission(permission: boolean) {
   submitted = true;
   deactivateUI();
 
-  if (!connectedInfo) {
+  if (!connectionInfo) {
     returnMessage("Connected info not found");
     return;
   }
@@ -217,11 +217,11 @@ async function handlePermission(permission: boolean) {
     return;
   }
 
-  await saveSkappPermissions(client, connectedInfo, skappInfo, permission);
+  await saveSkappPermissions(client, connectionInfo, skappInfo, permission);
 
   if (permission) {
     // Send the connected info to the bridge.
-    bridgeWindow.postMessage({ messageType: "connectionComplete", connectedInfo }, "*");
+    bridgeWindow.postMessage({ messageType: "connectionComplete", connectionInfo }, "*");
     // Send success message to opening skapp.
     returnMessage("success");
   } else {

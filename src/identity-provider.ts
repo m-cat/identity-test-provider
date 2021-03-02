@@ -29,8 +29,8 @@ export async function fetchIdentityUsingSeed(client: SkynetClient, seed: string)
     return data.identity;
   }
 
-export async function fetchSkappPermissions(client: SkynetClient, connectedInfo: ConnectedInfo, skappInfo: SkappInfo): Promise<boolean | null> {
-  const childSeed = deriveChildSeed(connectedInfo.seed, providerUrl);
+export async function fetchSkappPermissions(client: SkynetClient, connectionInfo: ConnectedInfo, skappInfo: SkappInfo): Promise<boolean | null> {
+  const childSeed = deriveChildSeed(connectionInfo.seed, providerUrl);
   const { publicKey } = genKeyPairFromSeed(childSeed);
 
   try {
@@ -50,11 +50,11 @@ export async function fetchSkappPermissions(client: SkynetClient, connectedInfo:
 
 export async function saveSkappPermissions(
   client: SkynetClient,
-  connectedInfo: ConnectedInfo,
+  connectionInfo: ConnectedInfo,
   skappInfo: SkappInfo,
   permission: boolean
 ): Promise<void> {
-  const childSeed = deriveChildSeed(connectedInfo.seed, providerUrl);
+  const childSeed = deriveChildSeed(connectionInfo.seed, providerUrl);
   const { privateKey } = genKeyPairFromSeed(childSeed);
   return client.db.setJSON(privateKey, skappInfo.domain, { permission });
 }
@@ -76,7 +76,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     connectorH,
   };
 
-  connectedInfo?: ConnectedInfo;
+  connectionInfo?: ConnectedInfo;
 
   // ===========
   // Constructor
@@ -91,7 +91,7 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   // =========================
 
   protected async clearConnectedInfo(): Promise<void> {
-    this.connectedInfo = undefined;
+    this.connectionInfo = undefined;
 
     if (!localStorage) {
       console.log("WARNING: localStorage disabled");
@@ -115,45 +115,45 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
     // Identity should have been set when creating the seed.
     const identity = await this.fetchIdentityUsingSeed(seed);
 
-    const connectedInfo = { seed, identity };
-    this.connectedInfo = connectedInfo;
-    return connectedInfo;
+    const connectionInfo = { seed, identity };
+    this.connectionInfo = connectionInfo;
+    return connectionInfo;
   }
 
   /**
    * Saves the seed and identity for the user. If the identity was not provided, we will look it up and return it.
    *
-   * @param connectedInfo
+   * @param connectionInfo
    */
-  protected async saveConnectedInfo(connectedInfo: ConnectedInfo): Promise<ConnectedInfo> {
+  protected async saveConnectedInfo(connectionInfo: ConnectedInfo): Promise<ConnectedInfo> {
     // Empty identity means the user signed in.
-    if (connectedInfo.identity === "") {
-      connectedInfo.identity = await this.fetchIdentityUsingSeed(connectedInfo.seed);
+    if (connectionInfo.identity === "") {
+      connectionInfo.identity = await this.fetchIdentityUsingSeed(connectionInfo.seed);
     } else {
-      await this.saveIdentityUsingSeed(connectedInfo.identity, connectedInfo.seed);
+      await this.saveIdentityUsingSeed(connectionInfo.identity, connectionInfo.seed);
     }
 
     // Save the seed in local storage.
     if (!localStorage) {
       console.log("WARNING: localStorage disabled");
     } else {
-      localStorage.setItem(loginKey, connectedInfo.seed);
+      localStorage.setItem(loginKey, connectionInfo.seed);
     }
 
-    this.connectedInfo = connectedInfo;
-    return connectedInfo;
+    this.connectionInfo = connectionInfo;
+    return connectionInfo;
   }
 
-  protected async fetchSkappPermissions(connectedInfo: ConnectedInfo, skappInfo: SkappInfo): Promise<boolean | null> {
-    return fetchSkappPermissions(this.client, connectedInfo, skappInfo);
+  protected async fetchSkappPermissions(connectionInfo: ConnectedInfo, skappInfo: SkappInfo): Promise<boolean | null> {
+    return fetchSkappPermissions(this.client, connectionInfo, skappInfo);
   }
 
   protected async saveSkappPermissions(
-    connectedInfo: ConnectedInfo,
+    connectionInfo: ConnectedInfo,
     skappInfo: SkappInfo,
     permission: boolean
   ): Promise<void> {
-    return saveSkappPermissions(this.client, connectedInfo, skappInfo, permission);
+    return saveSkappPermissions(this.client, connectionInfo, skappInfo, permission);
   }
 
   // =================
@@ -161,11 +161,11 @@ export class IdentityProvider extends Provider<ConnectedInfo> {
   // =================
 
   protected async identity(): Promise<string> {
-    if (!this.connectedInfo) {
+    if (!this.connectionInfo) {
       throw new Error("Provider does not have connection info");
     }
 
-    return this.connectedInfo.identity;
+    return this.connectionInfo.identity;
   }
 
   // ================
