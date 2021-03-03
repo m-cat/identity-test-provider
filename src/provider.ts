@@ -21,7 +21,7 @@ export type ProviderMetadata = {
 export type SkappInfo = {
   name: string;
   domain: string;
-}
+};
 
 export abstract class Provider<T> {
   isProviderConnected: boolean;
@@ -29,6 +29,7 @@ export abstract class Provider<T> {
   providerInterface: Interface;
 
   protected client: SkynetClient;
+  protected connectionInfoListener?: EventListener;
   protected parentConnection: Promise<Connection>;
 
   constructor(providerInterface: Interface, metadata: ProviderMetadata) {
@@ -47,9 +48,7 @@ export abstract class Provider<T> {
     const methods = {
       callInterface: (method: string) => this.callInterface(method),
       connectSilently: (skappInfo: SkappInfo) => this.connectSilently(skappInfo),
-      connectWithInput: (connectionInfo: T) => this.connectWithInput(connectionInfo),
       disconnect: () => this.disconnect(),
-      getMetadata: () => this.getMetadata(),
     };
     const messenger = new WindowMessenger({
       localWindow: window,
@@ -57,6 +56,13 @@ export abstract class Provider<T> {
       remoteOrigin: "*",
     });
     this.parentConnection = ChildHandshake(messenger, methods);
+
+    // Register listener for connected info from the connector.
+
+    const listener = this.connectionCompleteListener;
+    window.addEventListener("message", listener);
+    // @ts-expect-error TS is wrong here as far as I can tell.
+    this.connectionInfoListener = listener;
 
     // Initialize the Skynet client.
 
@@ -92,7 +98,7 @@ export abstract class Provider<T> {
   protected async connectSilently(skappInfo: SkappInfo): Promise<Interface | null> {
     // Check if user is connected already.
 
-    const connectionInfo = await this.fetchConnectedInfo();
+    const connectionInfo = await this.fetchConnectionInfo();
     if (!connectionInfo) {
       return null;
     }
@@ -107,41 +113,65 @@ export abstract class Provider<T> {
     return this.providerInterface;
   }
 
-  /**
-   * Completes a connection to the provider initiated in the connector. Triggered after receiving connection info from the connector.
-   */
-  protected async connectWithInput(connectionInfo: T): Promise<Interface> {
-    // TODO: Validate the connectionInfo using required abstract function and send an error if invalid.
-
-    // Save the connected info.
-    await this.saveConnectedInfo(connectionInfo);
-
-    this.isProviderConnected = true;
-    return this.providerInterface;
-  }
-
   protected async disconnect(): Promise<void> {
-    await this.clearConnectedInfo();
+    await this.clearConnectionInfo();
     this.isProviderConnected = false;
-  }
 
-  protected async getMetadata(): Promise<ProviderMetadata> {
-    return this.metadata;
+    // Unregister the connected info listener.
+    if (this.connectionInfoListener) {
+      window.removeEventListener("message", this.connectionInfoListener);
+    }
   }
 
   //=================
   // Internal Methods
   // ================
 
+  protected async connectionCompleteListener(event: MessageEvent) {
+    const parentConnection = await this.parentConnection;
+
+    // Only consider messages from the provider domain.
+    if (event.origin !== this.metadata.url) return;
+
+    if (!event.data) {
+      return;
+    }
+
+    // The message must be of type "connectionComplete".
+    if (event.data.messageType !== "connectionComplete") {
+      return;
+    }
+
+    // Finish connecting and get the interface.
+    const receivedConnectionInfo = event.data.connectionInfo;
+    await this.connectWithInput(receivedConnectionInfo);
+
+    // Send connectionComplete with interface back up to the bridge.
+    const localHandle = parentConnection.localHandle();
+    localHandle.emit("connectionComplete", { providerInterface: this.providerInterface, metadata: this.metadata });
+  }
+
+  /**
+   * Completes a connection to the provider initiated in the connector. Triggered after receiving connection info from the connector.
+   */
+  protected async connectWithInput(connectionInfo: T) {
+    // TODO: Validate the connectionInfo using required abstract function and send an error if invalid.
+
+    // Save the connected info.
+    await this.saveConnectionInfo(connectionInfo);
+
+    this.isProviderConnected = true;
+  }
+
   // =========================
   // Required Provider Methods
   // =========================
 
-  protected abstract clearConnectedInfo(): Promise<void>;
+  protected abstract clearConnectionInfo(): Promise<void>;
 
-  protected abstract fetchConnectedInfo(): Promise<T | null>;
+  protected abstract fetchConnectionInfo(): Promise<T | null>;
 
   protected abstract fetchSkappPermissions(connectionInfo: T, skappInfo: SkappInfo): Promise<boolean | null>;
 
-  protected abstract saveConnectedInfo(connectionInfo: T): Promise<T>;
+  protected abstract saveConnectionInfo(connectionInfo: T): Promise<T>;
 }

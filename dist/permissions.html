@@ -116,59 +116,34 @@
       <!-- For deactivating the container -->
       <div id="darkLayer" class="darkClass" style="display:none"></div>
 
-      <div id="identity-logged-out" class="identity-screen center">
-        <h1>Logged Out</h1>
+      <div id="permissions-fetching" class="permission-screen center">
+        <h1>Permissions</h1>
+        <img src="assets/fetching.svg" width="50px">
         <div>
-          <b>Sign in</b> with your passphrase, or <b>sign up</b> for a new account.
+          Fetching Permissions...
         </div>
-        <button id="button-logged-out-sign-in" class="btn" onclick="window.goToSignIn()">
-          Sign in
-        </button>
-        <button id="button-logged-out-sign-up" class="btn" onclick="window.goToSignUp()">
-          Sign up
-        </button>
       </div>
 
-      <div id="identity-sign-in" class="identity-screen center">
-        <h1>Sign In</h1>
+      <div id="permissions-requesting" class="permission-screen center">
+        <h1>Permissions</h1>
+        <img id="exclamation" src="assets/exclamation.svg" width="50px">
         <div>
-          Enter your passphrase:
+          <span class="skapp-name"></span> requests permissions to access your data.
         </div>
         <div>
-          <input type="text" id="signin-passphrase-text" name="passphrase-text" width+"100%"/>
+          Please make sure that <span class="skapp-name"></span> is a trusted source, and that it is coming from the following domain:
         </div>
-        <button id="button-back" class="btn" onclick="window.goToLoggedOut()">
-          Back
+        <div class="skapp-domain"> </div>
+        <button id="permissions-deny" class="btn" onclick="window.deny()">
+          Deny
         </button>
-        <button id="button-sign-in" class="btn" onclick="window.signIn()">
-          Sign In
-        </button>
-      </div>
-
-      <div id="identity-sign-up" class="identity-screen center">
-        <h1>Sign Up</h1>
-        <div>
-          Passphrase:
-        </div>
-        <div>
-          <input type="text" id="signup-passphrase-text" name="passphrase-text" width+"100%"/>
-        </div>
-        <div>
-          Enter your desired username:
-        </div>
-        <div>
-          <input type="text" id="username-text" name="passphrase-text" width+"100%"/>
-        </div>
-        <button id="button-back" class="btn" onclick="window.goToLoggedOut()">
-          Back
-        </button>
-        <button id="button-sign-up" class="btn" onclick="window.signUp()">
-          Sign Up
+        <button id="permissions-grant" class="btn" onclick="window.grant()">
+          Grant Access
         </button>
       </div>
 
     </div>
 
-    <script src="connector.js"> </script>
+    <script src="permissions.js"> </script>
   </body>
 </html>
