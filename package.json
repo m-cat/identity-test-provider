@@ -19,8 +19,8 @@
     "type": "git",
     "url": "git+https://github.com/m-cat/identity-test-provider.git"
   },
-  "author": "",
-  "license": "ISC",
+  "author": "Marcin Swieczkowski",
+  "license": "MIT",
   "bugs": {
     "url": "https://github.com/m-cat/identity-test-provider/issues"
   },
