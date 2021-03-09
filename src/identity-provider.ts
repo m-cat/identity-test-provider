@@ -9,8 +9,33 @@ import {
   connectorH,
   connectorW,
 } from "./consts";
-import { Provider, ProviderMetadata, SkappInfo } from "./provider";
-import type { Interface } from "./provider";
+import type { ProviderMetadata, SkappInfo } from "skynet-interface-utils";
+import { Provider } from "skynet-provider-utils";
+
+const providerInterface = {
+  name: "IdentityProvider",
+  version: "0.0.1",
+  methods: {
+    identity: {
+      parameters: [],
+      returnType: "string",
+    },
+    getJSON: {
+      parameters: [
+        {
+          name: "dataKey",
+          type: "string",
+        },
+        {
+          name: "customOptions",
+          type: "object",
+          optional: true,
+        }
+      ],
+      returnType: "object",
+    },
+  },
+};
 
 type ConnectionInfo = {
   seed: string;
@@ -64,13 +89,9 @@ export async function saveSkappPermissions(
 }
 
 export class IdentityProvider extends Provider<ConnectionInfo> {
-  static providerInterface: Interface = {
-    identity: ["string"],
-    isLoggedIn: ["bool"],
-    login: [],
-    logout: [],
-  };
   static metadata: ProviderMetadata = {
+    providerInterface,
+
     name: providerName,
     url: providerUrl,
 
@@ -81,13 +102,32 @@ export class IdentityProvider extends Provider<ConnectionInfo> {
   };
 
   connectionInfo?: ConnectionInfo;
+  client: SkynetClient;
 
   // ===========
   // Constructor
   // ===========
 
   constructor() {
-    super(IdentityProvider.providerInterface, IdentityProvider.metadata);
+    super(IdentityProvider.metadata);
+
+    // Initialize the Skynet client.
+
+    this.client = new SkynetClient();
+  }
+
+  // =================
+  // Interface Methods
+  // =================
+
+  methods = {
+    identity: async(): Promise<string> => {
+      if (!this.connectionInfo) {
+        throw new Error("Provider does not have connection info");
+      }
+
+      return this.connectionInfo.identity;
+    }
   }
 
   // =========================
@@ -158,18 +198,6 @@ export class IdentityProvider extends Provider<ConnectionInfo> {
     permission: boolean
   ): Promise<void> {
     return saveSkappPermissions(this.client, connectionInfo, skappInfo, permission);
-  }
-
-  // =================
-  // Interface Methods
-  // =================
-
-  protected async identity(): Promise<string> {
-    if (!this.connectionInfo) {
-      throw new Error("Provider does not have connection info");
-    }
-
-    return this.connectionInfo.identity;
   }
 
   // ================

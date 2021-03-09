@@ -37,7 +37,11 @@ window.onbeforeunload = () => {
 };
 
 window.onerror = function (error) {
-  returnMessage(`permissions.html: ${error}`);
+  if (typeof error === "string") {
+    returnMessage("error", error);
+  } else {
+    returnMessage("error", error.type);
+  }
 };
 
 // Code that runs on page load.
@@ -47,22 +51,22 @@ window.onload = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const name = urlParams.get("skappName");
   if (!name) {
-    returnMessage("Parameter 'skappName' not found");
+    returnMessage("error", "Parameter 'skappName' not found");
     return;
   }
   const domain = urlParams.get("skappDomain");
   if (!domain) {
-    returnMessage("Parameter 'skappDomain' not found");
+    returnMessage("error", "Parameter 'skappDomain' not found");
     return;
   }
   const seed = urlParams.get("loginSeed");
   if (!seed) {
-    returnMessage("Parameter 'loginSeed' not found");
+    returnMessage("error", "Parameter 'loginSeed' not found");
     return;
   }
   const identity = urlParams.get("loginIdentity");
-  if (!identity) {
-    returnMessage("Parameter 'loginIdentity' not found");
+  if (!identity && identity !== "") {
+    returnMessage("error", "Parameter 'loginIdentity' not found");
     return;
   }
 
@@ -117,11 +121,11 @@ function goToPermissionsRequesting() {
 
 async function getPermissions() {
   if (!connectionInfo) {
-    returnMessage("Connection info not found");
+    returnMessage("error", "Connection info not found");
     return;
   }
   if (!skappInfo) {
-    returnMessage("Skapp info not found");
+    returnMessage("error", "Skapp info not found");
     return;
   }
 
@@ -132,13 +136,12 @@ async function getPermissions() {
     goToPermissionsRequesting();
     return;
   } else if (permission === true) {
-    // Send the connected info to the provider.
-    window.localStorage.setItem("receivedConnectionInfo", JSON.stringify(connectionInfo));
-    // Send success message to opening skapp.
-    returnMessage("success");
+    // Send the connection info to the provider.
+    const result = JSON.stringify(connectionInfo);
+    returnMessage("success", result);
     return;
   } else {
-    returnMessage("Permission was denied");
+    returnMessage("error", "Permission was denied");
     return;
   }
 }
@@ -148,11 +151,11 @@ async function handlePermissions(permission: boolean) {
   deactivateUI();
 
   if (!connectionInfo) {
-    returnMessage("Connected info not found");
+    returnMessage("error", "Connected info not found");
     return;
   }
   if (!skappInfo) {
-    returnMessage("Skapp info not found");
+    returnMessage("error", "Skapp info not found");
     return;
   }
 
@@ -160,11 +163,10 @@ async function handlePermissions(permission: boolean) {
 
   if (permission) {
     // Send the connected info to the provider.
-    window.localStorage.setItem("receivedConnectionInfo", JSON.stringify(connectionInfo));
-    // Send success message to opening skapp.
-    returnMessage("success");
+    const result = JSON.stringify(connectionInfo);
+    returnMessage("success", result);
   } else {
-    returnMessage("Permission was denied");
+    returnMessage("error", "Permission was denied");
   }
 }
 
@@ -186,9 +188,11 @@ export function deactivateUI() {
   document.getElementById("darkLayer")!.style.display = "";
 }
 
-function returnMessage(message: string | Event) {
-  window.opener.postMessage(message, "*");
-  window.close();
+function returnMessage(key: "success" | "event" | "error", message: string, stayOpen = false) {
+  window.localStorage.setItem(key, message);
+  if (!stayOpen) {
+    window.close();
+  }
 }
 
 function setAllIdentityContainersInvisible() {

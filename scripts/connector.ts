@@ -33,14 +33,18 @@ let skappInfo: SkappInfo | undefined = undefined;
 window.onbeforeunload = () => {
   if (!submitted) {
     // Send a value to signify that window was closed.
-    window.opener.postMessage("closed", "*");
+    window.opener.postMessage("closed", "");
   }
 
   return null;
 };
 
 window.onerror = function (error) {
-  returnMessage(`connector.html: ${error}`);
+  if (typeof error === "string") {
+    returnMessage("error", error);
+  } else {
+    returnMessage("error", error.type);
+  }
 };
 
 // Code that runs on page load.
@@ -50,12 +54,12 @@ window.onload = () => {
   const urlParams = new URLSearchParams(window.location.search);
   const name = urlParams.get("skappName");
   if (!name) {
-    returnMessage("Parameter 'skappName' not found");
+    returnMessage("error", "Parameter 'skappName' not found");
     return;
   }
   const domain = urlParams.get("skappDomain");
   if (!domain) {
-    returnMessage("Parameter 'skappDomain' not found");
+    returnMessage("error", "Parameter 'skappDomain' not found");
     return;
   }
 
@@ -108,11 +112,11 @@ window.onload = () => {
 
 function goToPermissions() {
   if (!connectionInfo) {
-    returnMessage("Connection info not found");
+    returnMessage("error", "Connection info not found");
     return;
   }
   if (!skappInfo) {
-    returnMessage("Skapp info not found");
+    returnMessage("error", "Skapp info not found");
     return;
   }
 
@@ -125,24 +129,24 @@ async function handleConnectionInfo() {
   deactivateUI();
 
   if (!connectionInfo) {
-    returnMessage("Connection info not found");
+    returnMessage("error", "Connection info not found");
     return;
   }
   if (!skappInfo) {
-    returnMessage("Skapp info not found");
+    returnMessage("error", "Skapp info not found");
     return;
   }
 
   let { seed, identity } = connectionInfo;
   if (!seed) {
-    returnMessage("Seed not found");
+    returnMessage("error", "Seed not found");
     return;
   }
   if (!identity) {
     try {
       identity = await fetchIdentityUsingSeed(client, connectionInfo.seed);
     } catch (error) {
-      returnMessage(error.message);
+      returnMessage("error", error.message);
       return;
     }
   }
@@ -168,9 +172,11 @@ export function deactivateUI() {
   document.getElementById("darkLayer")!.style.display = "";
 }
 
-function returnMessage(message: string | Event) {
-  window.opener.postMessage(message, "*");
-  window.close();
+function returnMessage(key: "success" | "event" | "error", message: string, stayOpen = false) {
+  window.localStorage.setItem(key, message);
+  if (!stayOpen) {
+    window.close();
+  }
 }
 
 /**
