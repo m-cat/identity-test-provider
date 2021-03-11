@@ -1,5 +1,5 @@
+export const providerName = "IdentityProvider";
 export const providerUrl = location.hostname;
-export const providerName = "identity-test-name";
 
 export const connectorName = "identity";
 export const relativeConnectorPath = "connector.html";

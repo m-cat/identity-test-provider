@@ -9,11 +9,12 @@ import {
   connectorH,
   connectorW,
 } from "./consts";
-import type { ProviderMetadata, SkappInfo } from "skynet-interface-utils";
-import { Provider } from "skynet-provider-utils";
+import { ProviderInfo, ProviderMetadata, SkappInfo } from "skynet-interface-utils";
+import { BaseProvider } from "skynet-provider-utils";
 
-const providerInterface = {
-  name: "IdentityProvider",
+const info = new ProviderInfo(providerName, providerUrl);
+const schema = {
+  name: providerName,
   version: "0.0.1",
   methods: {
     identity: {
@@ -30,7 +31,7 @@ const providerInterface = {
           name: "customOptions",
           type: "object",
           optional: true,
-        }
+        },
       ],
       returnType: "object",
     },
@@ -42,6 +43,10 @@ type ConnectionInfo = {
   identity: string;
 };
 
+/**
+ * @param client
+ * @param seed
+ */
 export async function fetchIdentityUsingSeed(client: SkynetClient, seed: string): Promise<string> {
   const { publicKey } = genKeyPairFromSeed(seed);
   const { data } = await client.db.getJSON(publicKey, providerUrl, { timeout: 2 });
@@ -54,6 +59,11 @@ export async function fetchIdentityUsingSeed(client: SkynetClient, seed: string)
   return data.identity;
 }
 
+/**
+ * @param client
+ * @param connectionInfo
+ * @param skappInfo
+ */
 export async function fetchSkappPermissions(
   client: SkynetClient,
   connectionInfo: ConnectionInfo,
@@ -77,6 +87,12 @@ export async function fetchSkappPermissions(
   }
 }
 
+/**
+ * @param client
+ * @param connectionInfo
+ * @param skappInfo
+ * @param permission
+ */
 export async function saveSkappPermissions(
   client: SkynetClient,
   connectionInfo: ConnectionInfo,
@@ -88,12 +104,10 @@ export async function saveSkappPermissions(
   return client.db.setJSON(privateKey, skappInfo.domain, { permission });
 }
 
-export class IdentityProvider extends Provider<ConnectionInfo> {
+export class IdentityProvider extends BaseProvider<ConnectionInfo> {
   static metadata: ProviderMetadata = {
-    providerInterface,
-
-    name: providerName,
-    url: providerUrl,
+    schema,
+    info,
 
     relativeConnectorPath,
     connectorName,
@@ -121,14 +135,14 @@ export class IdentityProvider extends Provider<ConnectionInfo> {
   // =================
 
   methods = {
-    identity: async(): Promise<string> => {
+    identity: async (): Promise<string> => {
       if (!this.connectionInfo) {
         throw new Error("Provider does not have connection info");
       }
 
       return this.connectionInfo.identity;
-    }
-  }
+    },
+  };
 
   // =========================
   // Required Provider Methods

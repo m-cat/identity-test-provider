@@ -1,4 +1,5 @@
 import { SkynetClient } from "skynet-js";
+import { emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
 
 import { fetchSkappPermissions, saveSkappPermissions } from "../src/identity-provider";
 
@@ -7,17 +8,15 @@ type ConnectionInfo = {
   identity: string;
 };
 
-type SkappInfo = {
-  name: string;
-  domain: string;
-};
-
 const uiPermissionsFetching = document.getElementById("permissions-fetching")!;
 const uiPermissionsRequesting = document.getElementById("permissions-requesting")!;
 
+// Start the provider pinger in the background.
+const { promise: promisePing } = monitorOtherListener("connector", "provider", 5000);
+
 let submitted = false;
 
-let client = new SkynetClient();
+const client = new SkynetClient();
 
 let connectionInfo: ConnectionInfo | undefined = undefined;
 let skappInfo: SkappInfo | undefined = undefined;
@@ -46,6 +45,11 @@ window.onerror = function (error) {
 
 // Code that runs on page load.
 window.onload = () => {
+  // The provider pinger should run in the background and close the connector if the connection with the provider is lost.
+  promisePing.catch(() => {
+    returnMessage("error", "Provider timed out");
+  });
+
   // Get parameters.
 
   const urlParams = new URLSearchParams(window.location.search);
@@ -107,6 +111,9 @@ window.onload = () => {
 // Implementation
 // ==============
 
+/**
+ *
+ */
 function goToPermissionsFetching() {
   setAllIdentityContainersInvisible();
   uiPermissionsFetching.style.display = "block";
@@ -114,11 +121,17 @@ function goToPermissionsFetching() {
   getPermissions();
 }
 
+/**
+ *
+ */
 function goToPermissionsRequesting() {
   setAllIdentityContainersInvisible();
   uiPermissionsRequesting.style.display = "block";
 }
 
+/**
+ *
+ */
 async function getPermissions() {
   if (!connectionInfo) {
     returnMessage("error", "Connection info not found");
@@ -138,7 +151,7 @@ async function getPermissions() {
   } else if (permission === true) {
     // Send the connection info to the provider.
     const result = JSON.stringify(connectionInfo);
-    returnMessage("success", result);
+    returnMessage("success", result, false, "connector-connection-info");
     return;
   } else {
     returnMessage("error", "Permission was denied");
@@ -146,6 +159,9 @@ async function getPermissions() {
   }
 }
 
+/**
+ * @param permission
+ */
 async function handlePermissions(permission: boolean) {
   submitted = true;
   deactivateUI();
@@ -164,7 +180,7 @@ async function handlePermissions(permission: boolean) {
   if (permission) {
     // Send the connected info to the provider.
     const result = JSON.stringify(connectionInfo);
-    returnMessage("success", result);
+    returnMessage("success", result, false, "connector-connection-info");
   } else {
     returnMessage("error", "Permission was denied");
   }
@@ -188,13 +204,31 @@ export function deactivateUI() {
   document.getElementById("darkLayer")!.style.display = "";
 }
 
-function returnMessage(key: "success" | "event" | "error", message: string, stayOpen = false) {
-  window.localStorage.setItem(key, message);
+/**
+ * @param messageKey
+ * @param message
+ * @param stayOpen
+ * @param componentName
+ */
+function returnMessage(
+  messageKey: "success" | "event" | "error",
+  message: string,
+  stayOpen = false,
+  componentName?: string
+) {
+  let component = "connector";
+  if (componentName) {
+    component = componentName;
+  }
+  emitStorageEvent(component, messageKey, message);
   if (!stayOpen) {
     window.close();
   }
 }
 
+/**
+ *
+ */
 function setAllIdentityContainersInvisible() {
   uiPermissionsFetching.style.display = "none";
   uiPermissionsRequesting.style.display = "none";
