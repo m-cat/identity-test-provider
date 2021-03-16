@@ -1,18 +1,14 @@
 import { SkynetClient } from "skynet-js";
-import { emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
+import { defaultWindowTimeout, emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
 
 import { fetchSkappPermissions, saveSkappPermissions } from "../src/identity-provider";
-
-type ConnectionInfo = {
-  seed: string;
-  identity: string;
-};
+import { ConnectionInfo } from "../src";
 
 const uiPermissionsFetching = document.getElementById("permissions-fetching")!;
 const uiPermissionsRequesting = document.getElementById("permissions-requesting")!;
 
 // Start the provider pinger in the background.
-const { promise: promisePing } = monitorOtherListener("connector", "provider", 5000);
+const { promise: promisePing } = monitorOtherListener("connector", "provider", defaultWindowTimeout);
 
 let submitted = false;
 

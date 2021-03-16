@@ -11,6 +11,7 @@ import {
 } from "./consts";
 import { ProviderInfo, ProviderMetadata, SkappInfo } from "skynet-interface-utils";
 import { BaseProvider } from "skynet-provider-utils";
+import { ConnectionInfo } from ".";
 
 const info = new ProviderInfo(providerName, providerUrl);
 const schema = {
@@ -36,11 +37,6 @@ const schema = {
       returnType: "object",
     },
   },
-};
-
-type ConnectionInfo = {
-  seed: string;
-  identity: string;
 };
 
 /**
@@ -206,14 +202,6 @@ export class IdentityProvider extends BaseProvider<ConnectionInfo> {
     return fetchSkappPermissions(this.client, connectionInfo, skappInfo);
   }
 
-  protected async saveSkappPermissions(
-    connectionInfo: ConnectionInfo,
-    skappInfo: SkappInfo,
-    permission: boolean
-  ): Promise<void> {
-    return saveSkappPermissions(this.client, connectionInfo, skappInfo, permission);
-  }
-
   // ================
   // Internal Methods
   // ================
@@ -225,5 +213,13 @@ export class IdentityProvider extends BaseProvider<ConnectionInfo> {
   protected async saveIdentityUsingSeed(identity: string, seed: string): Promise<void> {
     const { privateKey } = genKeyPairFromSeed(seed);
     return this.client.db.setJSON(privateKey, providerUrl, { identity });
+  }
+
+  protected async saveSkappPermissions(
+    connectionInfo: ConnectionInfo,
+    skappInfo: SkappInfo,
+    permission: boolean
+  ): Promise<void> {
+    return saveSkappPermissions(this.client, connectionInfo, skappInfo, permission);
   }
 }

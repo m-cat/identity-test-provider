@@ -1,12 +1,8 @@
 import { SkynetClient } from "skynet-js";
-import { emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
+import { defaultWindowTimeout, emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
 
 import { fetchIdentityUsingSeed } from "../src/identity-provider";
-
-type ConnectionInfo = {
-  seed: string;
-  identity: string;
-};
+import { ConnectionInfo } from "../src";
 
 const relativePermissionsUrl = "permissions.html";
 
@@ -15,7 +11,7 @@ const uiIdentitySignIn = document.getElementById("identity-sign-in")!;
 const uiIdentitySignUp = document.getElementById("identity-sign-up")!;
 
 // Start the provider pinger in the background.
-const { promise: promisePing } = monitorOtherListener("connector", "provider", 2000);
+const { promise: promisePing } = monitorOtherListener("connector", "provider", defaultWindowTimeout);
 
 let submitted = false;
 
