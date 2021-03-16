@@ -126,9 +126,9 @@ export class IdentityProvider extends BaseProvider<ConnectionInfo> {
     this.client = new SkynetClient();
   }
 
-  // =================
-  // Interface Methods
-  // =================
+  // ==============
+  // Schema Methods
+  // ==============
 
   methods = {
     identity: async (): Promise<string> => {

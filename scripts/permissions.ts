@@ -49,14 +49,9 @@ window.onload = () => {
   // Get parameters.
 
   const urlParams = new URLSearchParams(window.location.search);
-  const name = urlParams.get("skappName");
-  if (!name) {
-    returnMessage("error", "Parameter 'skappName' not found");
-    return;
-  }
-  const domain = urlParams.get("skappDomain");
-  if (!domain) {
-    returnMessage("error", "Parameter 'skappDomain' not found");
+  const skappInfoString = urlParams.get("skappInfo");
+  if (!skappInfoString) {
+    returnMessage("error", "Parameter 'skappInfo' not found");
     return;
   }
   const seed = urlParams.get("loginSeed");
@@ -72,18 +67,24 @@ window.onload = () => {
 
   // Set values.
 
-  skappInfo = { name, domain };
+  // Parse the skappInfo object.
+  try {
+    skappInfo = JSON.parse(skappInfoString);
+  } catch (error) {
+    returnMessage("error", `Could not parse 'skappInfo': ${error}`);
+    return;
+  }
+  if (!skappInfo) {
+    returnMessage("error", "Parameter 'skappInfo' was null");
+    return;
+  }
   connectionInfo = { seed, identity };
 
   // Fill out Requesting page.
 
-  let tObj = document.getElementsByClassName("skapp-name");
+  const tObj = document.getElementsByClassName("skapp-domain");
   for (let i = 0; i < tObj.length; i++) {
-    tObj[i].textContent = name;
-  }
-  tObj = document.getElementsByClassName("skapp-domain");
-  for (let i = 0; i < tObj.length; i++) {
-    tObj[i].textContent = domain;
+    tObj[i].textContent = skappInfo.domain;
   }
 
   // Go to Fetching Permissions page.

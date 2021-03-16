@@ -1,5 +1,5 @@
 import { SkynetClient } from "skynet-js";
-import { defaultWindowTimeout, emitStorageEvent, monitorOtherListener, SkappInfo } from "skynet-interface-utils";
+import { defaultWindowTimeout, emitStorageEvent, monitorOtherListener } from "skynet-interface-utils";
 
 import { fetchIdentityUsingSeed } from "../src/identity-provider";
 import { ConnectionInfo } from "../src";
@@ -18,7 +18,7 @@ let submitted = false;
 const client = new SkynetClient();
 
 let connectionInfo: ConnectionInfo | undefined = undefined;
-let skappInfo: SkappInfo | undefined = undefined;
+const skappInfoString: string | undefined = undefined;
 
 // ======
 // Events
@@ -52,20 +52,11 @@ window.onload = () => {
   // Get parameters.
 
   const urlParams = new URLSearchParams(window.location.search);
-  const name = urlParams.get("skappName");
-  if (!name) {
-    returnMessage("error", "Parameter 'skappName' not found");
+  const skappInfoString = urlParams.get("skappInfo");
+  if (!skappInfoString) {
+    returnMessage("error", "Parameter 'skappInfo' not found");
     return;
   }
-  const domain = urlParams.get("skappDomain");
-  if (!domain) {
-    returnMessage("error", "Parameter 'skappDomain' not found");
-    return;
-  }
-
-  // Set values.
-
-  skappInfo = { name, domain };
 
   // Go to Logged Out page.
 
@@ -121,7 +112,7 @@ async function handleConnectionInfo() {
     returnMessage("error", "Connection info not found");
     return;
   }
-  if (!skappInfo) {
+  if (!skappInfoString) {
     returnMessage("error", "Skapp info not found");
     return;
   }
@@ -152,12 +143,12 @@ function goToPermissions() {
     returnMessage("error", "Connection info not found");
     return;
   }
-  if (!skappInfo) {
+  if (!skappInfoString) {
     returnMessage("error", "Skapp info not found");
     return;
   }
 
-  const permissionsUrl = `${relativePermissionsUrl}?skappName=${skappInfo.name}&skappDomain=${skappInfo.domain}&loginSeed=${connectionInfo.seed}&loginIdentity=${connectionInfo.identity}`;
+  const permissionsUrl = `${relativePermissionsUrl}?skappInfo=${skappInfoString}&loginSeed=${connectionInfo.seed}&loginIdentity=${connectionInfo.identity}`;
   window.location.replace(permissionsUrl);
 }
 
