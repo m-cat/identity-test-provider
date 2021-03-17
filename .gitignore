@@ -1,9 +1,4 @@
 node_modules
 .DS_Store
 
-dist/connector.js
-dist/connector.js.LICENSE.txt
-dist/permissions.js
-dist/permissions.js.LICENSE.txt
-dist/main.js
-dist/main.js.LICENSE.txt
+dist

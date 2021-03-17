@@ -18,7 +18,7 @@ let submitted = false;
 const client = new SkynetClient();
 
 let connectionInfo: ConnectionInfo | undefined = undefined;
-const skappInfoString: string | undefined = undefined;
+let skappInfoString: string | undefined = undefined;
 
 // ======
 // Events
@@ -52,11 +52,15 @@ window.onload = () => {
   // Get parameters.
 
   const urlParams = new URLSearchParams(window.location.search);
-  const skappInfoString = urlParams.get("skappInfo");
-  if (!skappInfoString) {
+  const skappInfoStringParam = urlParams.get("skappInfo");
+  if (!skappInfoStringParam) {
     returnMessage("error", "Parameter 'skappInfo' not found");
     return;
   }
+
+  // Set values.
+
+  skappInfoString = skappInfoStringParam;
 
   // Go to Logged Out page.
 
